@@ -79,6 +79,9 @@
     Game_Party.prototype._cgn_removeGuest = function(actorId){
         if (this._cgn_partyGuests.contains(actorId)){
             this._cgn_partyGuests.splice(this._cgn_partyGuests.indexOf(actorId), 1);
+            if(actorId == this._cgn_menuGuestId){
+                this._cgn_menuGuestId = -1;
+            }
             $gamePlayer.refresh();
             $gameMap.requestRefresh();
         }
@@ -127,7 +130,9 @@
     
     // ============= default menu setup ==================
     if(ADD_GUESTS_MENU_ITEM){
+        var _Window_MenuCommand_addOriginalCommands = Window_MenuCommand.prototype.addOriginalCommands;
         Window_MenuCommand.prototype.addOriginalCommands = function() {
+            _Window_MenuCommand_addOriginalCommands.call(this);
             var enabled = ($gameParty.guestCount() > 0);
             this.addCommand("Guests", "guests", enabled);
         };
