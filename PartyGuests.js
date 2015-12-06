@@ -44,6 +44,119 @@
     };
     
     // ========= End of Plugin interpreter commands setup =========
+    // ========= GameInterpreter override =========================
+    Game_Event.prototype.meetsConditions = function(page) {
+        var c = page.conditions;
+        if (c.switch1Valid) {
+            if (!$gameSwitches.value(c.switch1Id)) {
+                return false;
+            }
+        }
+        if (c.switch2Valid) {
+            if (!$gameSwitches.value(c.switch2Id)) {
+                return false;
+            }
+        }
+        if (c.variableValid) {
+            if ($gameVariables.value(c.variableId) < c.variableValue) {
+                return false;
+            }
+        }
+        if (c.selfSwitchValid) {
+            var key = [this._mapId, this._eventId, c.selfSwitchCh];
+            if ($gameSelfSwitches.value(key) !== true) {
+                return false;
+            }
+        }
+        if (c.itemValid) {
+            var item = $dataItems[c.itemId];
+            if (!$gameParty.hasItem(item)) {
+                return false;
+            }
+        }
+        if (c.actorValid) {
+            var actor = $gameActors.actor(c.actorId);
+            if (!$gameParty.members().contains(actor) && !$gameParty.partyGuests().contains(actor)) {
+                return false;
+            }
+        }
+        return true;
+    };
+    // ========= End of GameInterpreter override ==================
+    // ========= Game_Follower override ===========================
+    Game_Follower.prototype.initialize = function(memberIndex, is_guest) {
+        Game_Character.prototype.initialize.call(this);
+        this._memberIndex = memberIndex;
+        this._isGuest = is_guest;
+        this.setTransparent($dataSystem.optTransparent);
+        this.setThrough(true);
+    };
+
+    Game_Follower.prototype.actor = function() {
+        if(this._isGuest){
+            return $gameParty.partyGuests()[this._memberIndex];
+        }
+        return $gameParty.battleMembers()[this._memberIndex];
+    };
+    var _Game_Followers_prototype_initialize = Game_Followers.prototype.initialize;
+    Game_Followers.prototype.initialize = function() {
+        _Game_Followers_prototype_initialize.call(this);
+        for (var i = 0; i < MAX_GUEST_COUNT; i++) {
+            this._data.push(new Game_Follower(i, true));
+        }
+    }
+    var _Game_Followers_prototype_refresh = Game_Followers.prototype.refresh;
+    Game_Followers.prototype.refresh = function() {
+        // reorder data first, then do the actual refresh
+        this.reorderFollowers();
+        _Game_Followers_prototype_refresh.call(this);
+    };;
+    Game_Followers.prototype.reorderFollowers = function() {
+        var finalFollowers = [];
+        //first, check all battle members
+        for(var i = 0; i < this._data.length; i++){
+            var m = this._data[i];
+            if(!m._isGuest){
+                if(m.isVisible()){
+                    finalFollowers.push({idx:m._memberIndex, isGuest:false});
+                }
+            }
+        }
+        //first, check all guests
+        for(var i = 0; i < this._data.length; i++){
+            var m = this._data[i];
+            if(m._isGuest){
+                if(m.isVisible()){
+                    finalFollowers.push({idx:m._memberIndex, isGuest:true});
+                }
+            }
+        }
+        //next, add all battle members
+        for(var i = 0; i < this._data.length; i++){
+            var m = this._data[i];
+            if(!m._isGuest){
+                if(!m.isVisible()){
+                    finalFollowers.push({idx:m._memberIndex, isGuest:false});
+                }
+            }
+        }
+        //finally, add all guests
+        for(var i = 0; i < this._data.length; i++){
+            var m = this._data[i];
+            if(m._isGuest){
+                if(!m.isVisible()){
+                    finalFollowers.push({idx:m._memberIndex, isGuest:true});
+                }
+            }
+        }
+        // edit each Game_Follower
+        for(var i=0; i < this._data.length; i++){
+            var m = this._data[i];
+            m._isGuest = finalFollowers[i].isGuest;
+            m._memberIndex = finalFollowers[i].idx;
+        }
+    };
+    // ========= End of Game_Follower override ====================
     // ========= BattleManager override ===========================
     var _BattleManager_makeRewards = BattleManager.makeRewards;
     BattleManager.makeRewards = function(){
