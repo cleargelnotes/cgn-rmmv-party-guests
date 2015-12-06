@@ -83,6 +83,17 @@
         return true;
     };
     // ========= End of GameInterpreter override ==================
+    // ========= Scene_Load override ============================
+    var _Scene_Load_prototype_onLoadSuccess = Scene_Load.prototype.onLoadSuccess;
+    Scene_Load.prototype.onLoadSuccess = function() {
+        $gameActors._data.forEach(function(actor){
+            if(actor){
+                actor.parseGuestFuncCode();
+            }
+        });
+        _Scene_Load_prototype_onLoadSuccess.call(this);
+    };
+    // ========= End of Scene_Load override =====================
     // ========= Game_Follower override ===========================
     Game_Follower.prototype.initialize = function(memberIndex, is_guest) {
         Game_Character.prototype.initialize.call(this);
@@ -414,6 +425,7 @@
     };
     
     Game_Actor.prototype.parseGuestFuncCode = function(){
+        if(!this.guest_data || !this.guest_data.func_code) return;
         var code = this.guest_data.func_code;
         // split first using ampersand
         var splits = code.split("&");
@@ -448,6 +460,7 @@
                         toadd_pair.item = new RUtils.RRange(pair[1]);
                         toadd.item_selection.push(toadd_pair);
                     }
+                    console.log(toadd);
                 break;
                 
                 case "recover_hp":
